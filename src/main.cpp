@@ -89,10 +89,12 @@ int main() {
         displayRecords(inventory);
         std::cout << "Please enter record Number to view: ";
         std::cin >> menuIndex;
-        if (menuIndex < 0 || menuIndex >= inventory.size())
+        if (menuIndex < 0 ||
+            static_cast<std::size_t>(menuIndex) >= inventory.size())
           std::cout << "Invalid Input!" << std::endl;
-      } while (menuIndex < 0 || menuIndex >= inventory.size());
-      outputItem(inventory[menuIndex]);
+      } while (menuIndex < 0 ||
+               static_cast<std::size_t>(menuIndex) >= inventory.size());
+      outputItem(inventory[static_cast<std::size_t>(menuIndex)]);
     } break;
     // Displays records to change if needed
     case 3: {
@@ -103,10 +105,12 @@ int main() {
         std::cout << "Please enter # of record to change: ";
         std::cin >> menuIndex;
 
-        if (menuIndex < 0 || menuIndex >= inventory.size())
+        if (menuIndex < 0 ||
+            static_cast<std::size_t>(menuIndex) >= inventory.size())
           std::cout << "Invalid Input!" << std::endl;
-      } while (menuIndex < 0 || menuIndex >= inventory.size());
-      inventory[menuIndex] = inputItem();
+      } while (menuIndex < 0 ||
+               static_cast<std::size_t>(menuIndex) >= inventory.size());
+      inventory[static_cast<std::size_t>(menuIndex)] = inputItem();
     } break;
 
     case 4: {
@@ -366,6 +370,6 @@ int displayMenu() {
 void displayRecords(std::vector<Item> inventory) {
   std::cout << "Records: " << std::endl;
 
-  for (int x = 0; x < inventory.size(); x++)
+  for (std::size_t x = 0; x < inventory.size(); x++)
     std::cout << x << ":" << inventory[x].ItemDescription << std::endl;
 }
