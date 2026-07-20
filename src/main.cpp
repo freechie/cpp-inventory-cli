@@ -67,6 +67,10 @@ LoadResult readInventory(const std::string &fileName,
 void writeInventory(const std::string &, const std::vector<Item> &);
 int displayMenu();
 void displayRecords(std::vector<Item>);
+std::optional<int> readBoundedInteger(const std::string &prompt, int minimum,
+                                      int maximum);
+std::optional<std::size_t> selectRecordIndex(const std::vector<Item> &inventory,
+                                             const std::string &prompt);
 
 int main() {
   std::vector<Item> inventory;
@@ -76,49 +80,43 @@ int main() {
 
   std::cout << "Loaded " << loadResult.loaded << " items; skipped "
             << loadResult.skipped << ".\n";
-  do {
-    menuOption = displayMenu();
-    switch (menuOption) {
-    case 1: {
-      inventory.push_back(inputItem());
-    } break;
+  try {
+    do {
+      menuOption = displayMenu();
+      switch (menuOption) {
+      case 1: {
+        inventory.push_back(inputItem());
+      } break;
 
-    case 2: {
-      int menuIndex;
-      do {
-        displayRecords(inventory);
-        std::cout << "Please enter record Number to view: ";
-        std::cin >> menuIndex;
-        if (menuIndex < 0 ||
-            static_cast<std::size_t>(menuIndex) >= inventory.size())
-          std::cout << "Invalid Input!" << std::endl;
-      } while (menuIndex < 0 ||
-               static_cast<std::size_t>(menuIndex) >= inventory.size());
-      outputItem(inventory[static_cast<std::size_t>(menuIndex)]);
-    } break;
-    // Displays records to change if needed
-    case 3: {
-      int menuIndex;
-      do {
-        // Asks user the number of record to change
-        displayRecords(inventory);
-        std::cout << "Please enter # of record to change: ";
-        std::cin >> menuIndex;
+      case 2: {
+        const std::optional<std::size_t> selectedIndex =
+            selectRecordIndex(inventory, "Enter record number to view");
 
-        if (menuIndex < 0 ||
-            static_cast<std::size_t>(menuIndex) >= inventory.size())
-          std::cout << "Invalid Input!" << std::endl;
-      } while (menuIndex < 0 ||
-               static_cast<std::size_t>(menuIndex) >= inventory.size());
-      inventory[static_cast<std::size_t>(menuIndex)] = inputItem();
-    } break;
+        if (selectedIndex.has_value()) {
+          outputItem(inventory[selectedIndex.value()]);
+        }
+      } break;
 
-    case 4: {
-      writeInventory("Inventory.csv", inventory);
-      std::cout << "Saved. Goodbye!" << std::endl;
-    } break;
-    }
-  } while (menuOption != 4);
+      // Displays records to change if needed
+      case 3: {
+        const std::optional<std::size_t> selectedIndex =
+            selectRecordIndex(inventory, "Enter record number to change");
+        if (selectedIndex.has_value()) {
+          inventory[selectedIndex.value()] = inputItem();
+        }
+      } break;
+
+      case 4: {
+        writeInventory("Inventory.csv", inventory);
+        std::cout << "Saved. Goodbye!" << std::endl;
+      } break;
+      }
+    } while (menuOption != 4);
+  } catch (const std::runtime_error &error) {
+    std::cout << '\n' << error.what() << '\n';
+    writeInventory("Inventory.csv", inventory);
+    std::cout << "Saved. Goodbye!\n";
+  }
   return 0;
 }
 
@@ -196,7 +194,7 @@ Item inputItem() {
       std::string text;
 
       if (!std::getline(std::cin, text)) {
-        throw std::runtime_error("Input ended while reading quantity");
+        throw std::runtime_error("Input ended while entering quantity");
       }
 
       std::istringstream input(text);
@@ -220,7 +218,7 @@ Item inputItem() {
       std::string text;
 
       if (!std::getline(std::cin, text)) {
-        throw std::runtime_error("Input ended while reading price.");
+        throw std::runtime_error("Input ended while entering price.");
       }
 
       std::istringstream input(text);
@@ -239,14 +237,14 @@ Item inputItem() {
   std::cout << "Item Description: ";
 
   if (!std::getline(std::cin >> std::ws, temp.ItemDescription)) {
-    throw std::runtime_error("Input ended while reading item description.");
+    throw std::runtime_error("Input ended while entering item description.");
   }
 
   while (temp.ItemDescription.empty()) {
     std::cout << "Description cannot be empty. Enter item description: ";
 
     if (!std::getline(std::cin, temp.ItemDescription)) {
-      throw std::runtime_error("Input ended while reading item description.");
+      throw std::runtime_error("Input ended while entering item description.");
     }
   }
 
@@ -256,7 +254,7 @@ Item inputItem() {
     std::string dateText;
 
     if (!std::getline(std::cin, dateText)) {
-      throw std::runtime_error("Input ended while reading date.");
+      throw std::runtime_error("Input ended while entering date.");
     }
 
     std::optional<Date> parsedDate = parseDate(dateText);
@@ -349,22 +347,82 @@ void writeInventory(const std::string &fileName,
   }
 }
 
+std::optional<int> readBoundedInteger(const std::string &prompt, int minimum,
+                                      int maximum) {
+  while (true) {
+    std::cout << prompt;
+
+    std::string text;
+
+    if (!std::getline(std::cin, text)) {
+      return std::nullopt;
+    }
+
+    std::istringstream input(text);
+    int value{};
+
+    if (input >> value) {
+      input >> std::ws;
+
+      if (input.eof() && value >= minimum && value <= maximum) {
+        return value;
+      }
+    }
+    std::cout << "invalid input. Enter a whole number from " << minimum
+              << " to " << maximum << ".\n";
+  }
+}
+
+std::optional<std::size_t> selectRecordIndex(const std::vector<Item> &inventory,
+                                             const std::string &prompt) {
+  if (inventory.empty()) {
+    std::cout << "No inventory records are available.\n";
+    return std::nullopt;
+  }
+  displayRecords(inventory);
+
+  while (true) {
+    std::cout << prompt << " (or c to cancel): ";
+
+    std::string text;
+
+    if (!std::getline(std::cin, text)) {
+      return std::nullopt;
+    }
+
+    if (text == "c" || text == "C") {
+      return std::nullopt;
+    }
+    std::istringstream input(text);
+    std::size_t index{};
+
+    if (input >> index) {
+      input >> std::ws;
+
+      if (input.eof() && index < inventory.size()) {
+        return index;
+      }
+    }
+    std::cout << "Invalid input. Enter a record number from 0 to "
+              << inventory.size() - 1 << ", or c to cancel.\n";
+  }
+}
+
 int displayMenu() {
-  int ch;
-  do {
-    std::cout << "--------------------------------" << std::endl;
-    std::cout << "1: Add new records to the file" << std::endl;
-    std::cout << "2: Display any record in the file" << std::endl;
-    std::cout << "3: Change any record in the file " << std::endl;
-    std::cout << "4: Save & Exit" << std::endl;
-    std::cout << "--------------------------------\n>";
-    std::cin >> ch;
+  std::cout << "--------------------------------" << std::endl;
+  std::cout << "1: Add new records to the file" << std::endl;
+  std::cout << "2: Display any record in the file" << std::endl;
+  std::cout << "3: Change any record in the file " << std::endl;
+  std::cout << "4: Save & Exit" << std::endl;
 
-    if (ch < 1 || ch > 4)
-      std::cout << "Invalid Input!" << std::endl;
-  } while (ch < 1 || ch > 4);
+  const std::optional<int> choice =
+      readBoundedInteger("--------------------------------\n", 1, 4);
 
-  return ch;
+  if (!choice.has_value()) {
+    std::cout << "\nInput ended. Saving and exiting.\n";
+    return 4;
+  }
+  return choice.value();
 }
 
 void displayRecords(std::vector<Item> inventory) {
