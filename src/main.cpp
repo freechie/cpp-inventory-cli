@@ -89,6 +89,14 @@ int main() {
       } break;
 
       case 2: {
+        if (inventory.empty()) {
+          std::cout << "No inventory records are available.\n";
+        } else {
+          displayRecords(inventory);
+        }
+      } break;
+
+      case 3: {
         const std::optional<std::size_t> selectedIndex =
             selectRecordIndex(inventory, "Enter record number to view");
 
@@ -98,7 +106,7 @@ int main() {
       } break;
 
       // Displays records to change if needed
-      case 3: {
+      case 4: {
         const std::optional<std::size_t> selectedIndex =
             selectRecordIndex(inventory, "Enter record number to change");
         if (selectedIndex.has_value()) {
@@ -106,12 +114,12 @@ int main() {
         }
       } break;
 
-      case 4: {
+      case 5: {
         writeInventory("Inventory.csv", inventory);
         std::cout << "Saved. Goodbye!" << std::endl;
       } break;
       }
-    } while (menuOption != 4);
+    } while (menuOption != 5);
   } catch (const std::runtime_error &error) {
     std::cout << '\n' << error.what() << '\n';
     writeInventory("Inventory.csv", inventory);
@@ -411,16 +419,17 @@ std::optional<std::size_t> selectRecordIndex(const std::vector<Item> &inventory,
 int displayMenu() {
   std::cout << "--------------------------------" << std::endl;
   std::cout << "1: Add new records to the file" << std::endl;
-  std::cout << "2: Display any record in the file" << std::endl;
-  std::cout << "3: Change any record in the file " << std::endl;
-  std::cout << "4: Save & Exit" << std::endl;
+  std::cout << "2: List all records" << std::endl;
+  std::cout << "3: Display any record in the file" << std::endl;
+  std::cout << "4: Change any record in the file " << std::endl;
+  std::cout << "5: Save & Exit" << std::endl;
 
   const std::optional<int> choice =
-      readBoundedInteger("--------------------------------\n", 1, 4);
+      readBoundedInteger("--------------------------------\n", 1, 5);
 
   if (!choice.has_value()) {
     std::cout << "\nInput ended. Saving and exiting.\n";
-    return 4;
+    return 5;
   }
   return choice.value();
 }
