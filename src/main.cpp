@@ -38,6 +38,7 @@ Input Validation:
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <sys/wait.h>
 #include <vector>
 
 struct Date {
@@ -71,6 +72,32 @@ std::optional<int> readBoundedInteger(const std::string &prompt, int minimum,
                                       int maximum);
 std::optional<std::size_t> selectRecordIndex(const std::vector<Item> &inventory,
                                              const std::string &prompt);
+bool readConfirmation(const std::string &prompt) {
+  while (true) {
+    std::cout << prompt << " [y/n]: ";
+    std::string text;
+
+    if (!std::getline(std::cin, text)) {
+      return false;
+    }
+    std::istringstream input(text);
+    char response{};
+
+    if (input >> response) {
+      input >> std::ws;
+
+      if (input.eof()) {
+        if (response == 'y' || response == 'Y') {
+          return true;
+        }
+        if (response == 'n' || response == 'N') {
+          return false;
+        }
+      }
+    }
+    std::cout << "Invalid input. Enter y or n.\n";
+  }
+}
 
 int main() {
   std::vector<Item> inventory;
@@ -115,11 +142,33 @@ int main() {
       } break;
 
       case 5: {
+        const std::optional<std::size_t> selectedIndex =
+            selectRecordIndex(inventory, "Enter the record number to delete");
+
+        if (selectedIndex.has_value()) {
+          const std::size_t index = selectedIndex.value();
+          outputItem(inventory[index]);
+
+          if (readConfirmation("Delete this record?")) {
+            inventory.erase(
+                inventory.begin() +
+                // std::ptrdiff_t is the signed type used for iterator distances
+                // the index is safe to convert because selectRecordIndex()
+                // already proved it is within the vector.
+                static_cast<std::ptrdiff_t>(index));
+
+            std::cout << "Record deleted.\n";
+          } else {
+            std::cout << "Record was not deleted.\n";
+          }
+        }
+      } break;
+      case 6: {
         writeInventory("Inventory.csv", inventory);
         std::cout << "Saved. Goodbye!" << std::endl;
       } break;
       }
-    } while (menuOption != 5);
+    } while (menuOption != 6);
   } catch (const std::runtime_error &error) {
     std::cout << '\n' << error.what() << '\n';
     writeInventory("Inventory.csv", inventory);
@@ -182,13 +231,14 @@ std::optional<Date> parseDate(const std::string &text) {
 }
 
 void outputItem(Item output) {
+  std::cout << std::fixed << std::setprecision(2);
   std::cout << "\nItemDescription :\t" << output.ItemDescription;
   std::cout << "\nDate            :\t";
   std::cout << output.dateAdded.month << "/" << output.dateAdded.day << "/"
             << output.dateAdded.year;
   std::cout << "\nQuantity on Hand:\t" << output.quantityCost;
-  std::cout << "\nWholesale Cost  :\t" << output.wholesale;
-  std::cout << "\nRetail Cost     :\t" << output.retailCost << std::endl
+  std::cout << "\nWholesale Cost  :\t$" << output.wholesale;
+  std::cout << "\nRetail Cost     :\t$" << output.retailCost << std::endl
             << std::endl;
 }
 
@@ -275,7 +325,7 @@ Item inputItem() {
   }
 
   temp.quantityCost = readNonNegativeInteger("Quantity on hand: ");
-  temp.wholesale = readNonNegativePrice("Wholesale cost: $:");
+  temp.wholesale = readNonNegativePrice("Wholesale cost: $");
   temp.retailCost = readNonNegativePrice("Retail cost: $");
 
   return temp;
@@ -422,14 +472,15 @@ int displayMenu() {
   std::cout << "2: List all records" << std::endl;
   std::cout << "3: Display any record in the file" << std::endl;
   std::cout << "4: Change any record in the file " << std::endl;
-  std::cout << "5: Save & Exit" << std::endl;
+  std::cout << "5: Delete a record" << std::endl;
+  std::cout << "6: Save & Exit" << std::endl;
 
   const std::optional<int> choice =
-      readBoundedInteger("--------------------------------\n", 1, 5);
+      readBoundedInteger("--------------------------------\n", 1, 6);
 
   if (!choice.has_value()) {
     std::cout << "\nInput ended. Saving and exiting.\n";
-    return 5;
+    return 6;
   }
   return choice.value();
 }
@@ -438,5 +489,5 @@ void displayRecords(std::vector<Item> inventory) {
   std::cout << "Records: " << std::endl;
 
   for (std::size_t x = 0; x < inventory.size(); x++)
-    std::cout << x << ":" << inventory[x].ItemDescription << std::endl;
+    std::cout << x << ": " << inventory[x].ItemDescription << std::endl;
 }
