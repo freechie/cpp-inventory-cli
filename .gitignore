@@ -3,3 +3,10 @@ build/
 Inventory.csv
 .vscode/
 .idea/
+
+# Local learning materials
+MISSION.md
+RESOURCES.md
+learning-records/
+lessons/
+reference/

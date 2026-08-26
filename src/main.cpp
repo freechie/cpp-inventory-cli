@@ -64,7 +64,7 @@ Item inputItem();
 void outputItem(Item);
 LoadResult readInventory(const std::string &fileName,
                          std::vector<Item> &inventory);
-void writeInventory(const std::string &, const std::vector<Item> &);
+bool writeInventory(const std::string &, const std::vector<Item> &);
 int displayMenu();
 void displayRecords(std::vector<Item>);
 std::optional<int> readBoundedInteger(const std::string &prompt, int minimum,
@@ -163,15 +163,23 @@ int main() {
         }
       } break;
       case 6: {
-        writeInventory("Inventory.csv", inventory);
-        std::cout << "Saved. Goodbye!" << std::endl;
+        if (writeInventory("Inventory.csv", inventory)) {
+          std::cout << "Saved. Goodbye!" << std::endl;
+        } else {
+          std::cerr << "Inventory was not saved.\n";
+          return 1;
+        }
       } break;
       }
     } while (menuOption != 6);
   } catch (const std::runtime_error &error) {
     std::cout << '\n' << error.what() << '\n';
-    writeInventory("Inventory.csv", inventory);
-    std::cout << "Saved. Goodbye!\n";
+    if (writeInventory("Inventory.csv", inventory)) {
+      std::cout << "Saved. Goodbye!\n";
+    } else {
+      std::cerr << "Inventory was not saved.\n";
+      return 1;
+    }
   }
   return 0;
 }
@@ -384,13 +392,13 @@ LoadResult readInventory(const std::string &fileName,
   return result;
 }
 
-void writeInventory(const std::string &fileName,
+bool writeInventory(const std::string &fileName,
                     const std::vector<Item> &inventory) {
   std::ofstream file(fileName, std::ios::trunc);
 
   if (!file) {
     std::cerr << "Unable to open " << fileName << " for writing.\n";
-    return;
+    return false;
   }
 
   file << "description,quantity,wholesale,retail,month,day,year\n";
@@ -402,6 +410,15 @@ void writeInventory(const std::string &fileName,
          << item.dateAdded.month << ',' << item.dateAdded.day << ','
          << item.dateAdded.year << '\n';
   }
+
+  file.close();
+
+  if (!file) {
+    std::cerr << "Unable to finish writing " << fileName << ".\n";
+    return false;
+  }
+
+  return true;
 }
 
 std::optional<int> readBoundedInteger(const std::string &prompt, int minimum,
